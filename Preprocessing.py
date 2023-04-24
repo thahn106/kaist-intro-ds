@@ -137,3 +137,17 @@ fake_rate_bymonth.sort(key=lambda x: x[1], reverse=True)
 for month, rate in fake_rate_bymonth:
     print(f"{month}: {rate}")
 
+
+# %%
+# Question 6
+
+cols = ["TotalGrossMassMeasure(KG)", "AdValoremTaxBaseAmount(Won)"]
+print(train_data_raw[cols[0]].corr(train_data_raw[cols[1]], method="pearson"))
+
+
+# %%
+# Question 7
+
+cols = ["TaxRate", "Fake"]
+print(train_data_raw[cols[0]].corr(train_data_raw[cols[1]], method="pearson"))
+
