@@ -1,11 +1,7 @@
 # %% [markdown]
-# ### Use this notebook for the given task of the term project.
+# # Model Building
 #
-# ### **_Make sure to delete all text cells before submission to avoid an unncessary increase of Turnitin similarity. That is, leave only the code cells._**
-#
-
-# %% [markdown]
-# We will use only **'train.csv'**. Load the 'train.csv' file into a Pands dataframe.
+# Written as a synced .py file, executable as a notebook by the Jupytext extension.
 #
 
 # %%
@@ -21,13 +17,6 @@ train_file = os.path.join(os.getcwd(), "data", "train.csv")
 
 train_data_raw = pd.read_csv(train_file, parse_dates=["IssueDateTime"])
 # test_data_raw = pd.read_csv(test_file, parse_dates=["IssueDateTime"])
-train_data_raw.tail(1000)
-
-
-
-# %% [markdown]
-# Keep only the first two digits in the 'ClassificationID' attribute. For example, `9619001090` $\rightarrow$ `96`. If 'ClassificationID' has only nine (not ten) digits, you need to extract the first one digit (e.g., `505100000` $\rightarrow$ `5`).
-#
 
 # %%
 train_data = train_data_raw.drop(
@@ -52,66 +41,74 @@ train_data["ClassificationID"] = train_data["ClassificationID"].apply(
 )  # drop last 8 characters
 train_data.info()
 
-# %% [markdown]
-# Please note that the 'DeclarationOfficeID', 'PaymentType', 'BorderTransportMeans', and 'ExportationCountry' attributes are categorical, even though some of them have numerical forms. Then, let's factorize these attributes. Here, for each unique value in an attribute, assign consecutive integer values in the increasing order of the original values. Let's call these newly assigned integers as _codes_. As an example with 'ExportationCountry', `AE` $\rightarrow$ `0`.
-#
-# **Hint**: use `pd.factorize(train_df[...], sort=True)` for each of the attributes.
-#
-# ####Q1. What is the maximum code of the 'ExportationCountry' attribute?
-#
-# ####Q2. What is the maximum code of the 'DeclarationOfficeID' attribute?
-#
+# %%
+categorical_columns = [
+    "DeclarationOfficeID",
+    "PaymentType",
+    "BorderTransportMeans",
+    "ExportationCountry",
+]
+for col in categorical_columns:
+    train_data[col] = pd.factorize(train_data[col], sort=True)[0]
+
+# Questions 1, 2
+print(f"{train_data['ExportationCountry'].max()=}")
+print(f"{train_data['DeclarationOfficeID'].max()=}")
+
 
 # %%
-pd.factorize(train_data["ClassificationID"], sort=True)[0]
+# Question 3
+train_data_dummy = pd.get_dummies(
+    train_data, prefix=["ClassificationID"], columns=["ClassificationID"]
+)
+train_data_dummy.head()
+print(f"{train_data_dummy.columns.size=}")
 
-
-# %% [markdown]
-# Convert the 'ClassificationID' attribute (categorical) to a set of asymmetric **binary** variables. Use `pd.get_dummies(...)`, and we do **not** want to introduce redundancy in this process (i.e., be caureful with the `drop_first` option). Keep the original dataframe and store this new one as another dataframe.
-#
-# #### Q3. What is the total number of columns of this **new** dataframe?
-#
 
 # %%
+# Question 4
+train_part = train_data[train_data["IssueDateTime"] < 10]
+test_part = train_data[train_data["IssueDateTime"] >= 10]
 
+print(f"{len(train_data)=}")
+print(f"{len(train_part)=}")
+print(f"{len(test_part)=}")
 
-# %% [markdown]
-# Split the dataframe (immediately after **Q2**, i.e., before executing `get_dummies`) into `train_part` that contains the rows from January through September and `test_part` that contains the rows from October through December.
-#
-# Then, let's use `train_part` as the training set and `test_part` as the test set.
-#
-# ####Q4. How many examples (rows) are contained in `train_part`?
-#
 
 # %%
+# Question 5
+from sklearn.metrics import accuracy_score
 
+dumb_pred = np.zeros(len(test_part))
+dumb_true = test_part["Fake"]
 
-# %% [markdown]
-# Let's consider a dumb classifier that **always** returns **0**.
-#
-# #### Q5. What is the accuracy of the dumb classifier on the test set `test_part`? Round the number to three decimal places (e.g., 0.67861352 $\rightarrow$ 0.679).
-#
+print(f"{accuracy_score(dumb_true, dumb_pred):.3f}")
+
 
 # %%
+# Questions 6, 7
+from sklearn.neighbors import KNeighborsClassifier
 
+train_part_data = train_part.drop(["Fake"], axis=1)
+train_part_labels = train_part["Fake"]
+test_part_data = test_part.drop(["Fake"], axis=1)
+knn_true = test_part["Fake"]
 
-# %% [markdown]
-# Let's implement a **k-nearest neighbor** classifier. To ease your implementation, please use `KNeighborsClassifier` of the scikit-learn library. Refer to the scikit-learn [manual](https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KNeighborsClassifier.html). Use the default values for all parameters except `n_neighborsint` and `weights`.
-#
-# Note that we want to weight points by the inverse of their distance.
-#
-# #### Q6. Increase the number ($k$) of neighbors from **1** through **9**. At which value of $k$, is the accuracy of the classifier on the test set `test_part` maximized?
-#
-# #### Q7. What is the accuracy achieved in **Q6**? Round the number to three decimal places (e.g., 0.67861352 $\rightarrow$ 0.679).
-#
+for k in range(1, 10):
+    knn = KNeighborsClassifier(n_neighbors=k, weights="distance")
+    knn.fit(train_part_data, train_part_labels)
+    knn_pred = knn.predict(test_part_data)
+    print(f"Accuracy for k={k}: {accuracy_score(knn_true, knn_pred):.3f}.")
+
 
 # %%
+# Question 8 (With dummies)
+K_FIXED = 7
+train_part_dummy = train_data_dummy[train_data_dummy["IssueDateTime"] < 10]
+test_part_dummy = train_data_dummy[train_data_dummy["IssueDateTime"] >= 10]
 
-
-# %% [markdown]
-# Repeat the training and test procedures using the other dataframe obtained in **Q3**.
-#
-# #### Q8. Comparing the accuracy at the same value of $k$ as **Q6**~**Q7**, is the accuracy improved by using the other dataframe in **Q3**?
-#
-
-# %%
+knn_true = test_part_dummy["Fake"]
+knn = KNeighborsClassifier(n_neighbors=K_FIXED, weights="distance")
+knn.fit(train_part_dummy.drop(["Fake"], axis=1), train_part_dummy["Fake"])
+knn_pred = knn.predict(test_part_dummy.drop(["Fake"], axis=1))
+print(f"Accuracy for k={K_FIXED}: {accuracy_score(knn_true, knn_pred):.3f}.")
