@@ -1,3 +1,8 @@
+# development environment
 env/
+.vscode/
 
+
+# data
 *.csv
+
